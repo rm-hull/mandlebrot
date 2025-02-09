@@ -1,5 +1,4 @@
-import "./App.css";
-import Mandelbrot from "./Mandlebrot";
+import Mandelbrot from "./Mandelbrot";
 
 function App() {
 
