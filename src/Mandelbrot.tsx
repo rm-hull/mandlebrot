@@ -14,12 +14,13 @@ const Mandelbrot: React.FC = () => {
     centerY: number;
   } | null>(null);
 
-  const [zoom, setZoom] = useState(1.0);
+  const [zoom, setZoom] = useState(0.5);
   const [centerX, setCenterX] = useState(-0.5);
   const [centerY, setCenterY] = useState(0.0);
   const [quality, setQuality] = useState(1.0);
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [maxIterations, setMaxIterations] = useState(1000);
 
   // Handle window resize
   useEffect(() => {
@@ -73,9 +74,8 @@ const Mandelbrot: React.FC = () => {
       uniform float u_centerX;
       uniform float u_centerY;
       
-      const int MAX_ITERATIONS = 1000;
-      const float LOG2 = 0.693147180559945;
-      
+      const int MAX_ITERATIONS = ${maxIterations};
+
       vec3 hsv2rgb(vec3 c) {
         vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
         vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -108,8 +108,7 @@ const Mandelbrot: React.FC = () => {
           return;
         }
         
-        float smoothed = iter + 1.0 - log(log(length(z)) / LOG2) / LOG2;
-        float hue = smoothed / 50.0;
+        float hue = iter / 50.0;
         
         vec3 color = hsv2rgb(vec3(
           fract(hue + 0.95),
@@ -190,7 +189,7 @@ const Mandelbrot: React.FC = () => {
         gl.deleteBuffer(positionBuffer);
       }
     };
-  }, [zoom, centerX, centerY, quality, dimensions]);
+  }, [zoom, centerX, centerY, quality, dimensions, maxIterations]);
 
   const handleMouseWheel = (event: React.WheelEvent) => {
     event.preventDefault();
@@ -251,6 +250,24 @@ const Mandelbrot: React.FC = () => {
       />
 
       <div className={styles.controls}>
+        <center>
+          WebGL Mandelbrot Renderer{" "}
+          <a href="https://github.com/rm-hull/mandelbrot" target="blank">
+            https://github.com/rm-hull/mandelbrot
+          </a>
+        </center>
+        <div>
+          <label>Iterations:</label>
+          <input
+            type="range"
+            min="100"
+            max="2000"
+            step="1"
+            value={maxIterations}
+            onChange={(e) => setMaxIterations(parseFloat(e.target.value))}
+          />
+          <span>{maxIterations}</span>
+        </div>
         <div>
           <label>Quality: </label>
           <input
@@ -264,14 +281,16 @@ const Mandelbrot: React.FC = () => {
           <span>{quality.toFixed(2)}x</span>
         </div>
         <div>
-          <label>Zoom: </label>
+          <label>Zoom:</label>
           <span>{zoom}x</span>
         </div>
         <div>
-          <label>Position: </label>
-          <span>
-            {centerX}, {centerY}
-          </span>
+          <label>Position:</label>
+          <span>x = {centerX}</span>
+        </div>
+        <div>
+          <label></label>
+          <span>y = {centerY}</span>
         </div>
       </div>
     </div>

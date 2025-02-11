@@ -1,4 +1,19 @@
 .controls {
+  font-size: 12px;
+  margin: 5px;
+  padding: 5px;
+  border-radius: 5px;
+  background-color: rgba(0, 0, 0, 0.4);
   position: absolute;
   top: 0;
+  width: 250px;
+}
+
+.controls label {
+  width: 60px;
+  display: inline-block;
+}
+
+.controls a:visited {
+  color: skyblue;
 }
