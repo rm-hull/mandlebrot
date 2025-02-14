@@ -249,7 +249,7 @@ const Mandelbrot: React.FC = () => {
         ref={canvasRef}
         style={{
           width: "100%",
-          height: "100%",
+          height: "100vh",
           cursor: isDragging ? "grabbing" : "grab",
         }}
         onWheel={handleMouseWheel}
