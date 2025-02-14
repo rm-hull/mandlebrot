@@ -292,15 +292,15 @@ const Mandelbrot: React.FC = () => {
         </div>
         <div>
           <label>Zoom:</label>
-          <span>{zoom}x</span>
+          <span>{zoom.toFixed(6)}x</span>
         </div>
         <div>
           <label>Position:</label>
-          <span>x = {centerX}</span>
+          <span>x = {centerX.toFixed(8)}</span>
         </div>
         <div>
           <label></label>
-          <span>y = {centerY}</span>
+          <span>y = {centerY.toFixed(8)}</span>
         </div>
       </div>
     </div>
