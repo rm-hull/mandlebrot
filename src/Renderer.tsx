@@ -6,7 +6,7 @@ import {
   MouseEvent,
   WheelEvent,
 } from "react";
-import styles from "./Mandelbrot.module.css";
+import styles from "./Renderer.module.css";
 import vertexShaderSource from "./webgl/vertex_shader.glsl?raw";
 import fragmentShaderSource from "./webgl/fragment_shader.glsl?raw";
 import { useGLSL } from "./hooks/useGLSL";
@@ -14,7 +14,7 @@ import classNames from "classnames";
 
 type Point = { x: number; y: number };
 
-export default function Mandelbrot() {
+export default function Renderer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<(Point & { center: Point }) | null>(null);
 

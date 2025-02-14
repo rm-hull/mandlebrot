@@ -1,10 +1,9 @@
-import Mandelbrot from "./Mandelbrot";
+import Renderer from "./Renderer";
 
 function App() {
-
   return (
     <>
-      <Mandelbrot />
+      <Renderer />
     </>
   );
 }
