@@ -19,14 +19,23 @@ vec3 hsv2rgb(vec3 c) {
 
 void main() {
   float aspectRatio = u_resolution.x / u_resolution.y;
+  // Precompute constant factors used for coordinate generation.
+  float scaleX = 4.0 * aspectRatio;
+  float offsetX = 2.0 * aspectRatio;
+  float scaleY = 4.0;
+  float offsetY = 2.0;
+
+  float factorX = (scaleX * u_zoom) / u_resolution.x;
+  float factorY = (scaleY * u_zoom) / u_resolution.y;
   
   vec2 c = vec2(
-    (gl_FragCoord.x / u_resolution.x * 4.0 * aspectRatio - 2.0 * aspectRatio) * u_zoom + u_center.x,
-    -(gl_FragCoord.y / u_resolution.y * 4.0 - 2.0) * u_zoom + u_center.y
+    gl_FragCoord.x * factorX - offsetX * u_zoom + u_center.x,
+    -(gl_FragCoord.y * factorY - offsetY * u_zoom) + u_center.y
   );
   
-  vec2 z = vec2(0.0);
-  int iter = 0;
+  float x = 0.0, y = 0.0;
+  float x2 = 0.0, y2 = 0.0;
+  int iter = u_maxIterations; // assume full iterations by default
 
   for (int i = 0; i <= ABSOLUTE_MAX; i++) {
     if (i >= u_maxIterations) {
@@ -34,14 +43,17 @@ void main() {
       break;
     }
 
-    float x = z.x * z.x - z.y * z.y + c.x;
-    float y = 2.0 * z.x * z.y + c.y;
-
-    if (x * x + y * y > 4.0) {
+    if (x2 + y2 > 4.0) {
       iter = i;
       break;
-    } 
-    z = vec2(x, y);
+    }
+
+    float new_x = x2 - y2 + c.x;
+    y = 2.0 * x * y + c.y;
+    x = new_x;
+    
+    x2 = x * x;
+    y2 = y * y;
   }
 
   if (iter >= u_maxIterations) {
@@ -50,7 +62,6 @@ void main() {
   }
 
   float hue = float(iter) / 50.0;
-
   vec3 color = hsv2rgb(vec3(
     fract(hue + 0.95),
     0.8,
