@@ -2,12 +2,10 @@ import React, { useRef, useEffect, useState } from "react";
 import styles from "./Mandelbrot.module.css";
 import vertexShaderSource from "./webgl/vertex_shader.glsl?raw";
 import fragmentShaderSource from "./webgl/fragment_shader.glsl?raw";
+import { useGLSL } from "./hooks/useGLSL";
 
 export default function Mandelbrot() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const glRef = useRef<WebGLRenderingContext | null>(null);
-  const programRef = useRef<WebGLProgram | null>(null);
   const animationFrameRef = useRef<number>(0);
   const dragStartRef = useRef<{
     x: number;
@@ -21,6 +19,11 @@ export default function Mandelbrot() {
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [maxIterations, setMaxIterations] = useState(1000);
+
+  const { canvasRef, glRef, programRef } = useGLSL(
+    vertexShaderSource,
+    fragmentShaderSource
+  );
 
   // Handle window resize
   useEffect(() => {
@@ -38,72 +41,13 @@ export default function Mandelbrot() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const gl = glRef.current;
+    const program = programRef.current;
+    if (!canvas || !gl || !program) return;
 
     // Set canvas size to match container
     canvas.width = dimensions.width * quality * window.devicePixelRatio;
     canvas.height = dimensions.height * quality * window.devicePixelRatio;
-
-    const gl = canvas.getContext("webgl", {
-      antialias: false,
-      preserveDrawingBuffer: true,
-    });
-
-    if (!gl) {
-      throw new Error("WebGL not supported");
-    }
-
-    glRef.current = gl;
-
-    console.log("WebGL initialized ... creating shaders");
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(
-      gl,
-      gl.FRAGMENT_SHADER,
-      fragmentShaderSource
-    );
-
-    const program = gl.createProgram();
-    if (!program) return;
-
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      throw new Error("Program link error: " + gl.getProgramInfoLog(program));
-    }
-
-    gl.useProgram(program);
-
-    const positionAttributeLocation = gl.getAttribLocation(
-      program,
-      "a_position"
-    );
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-
-    programRef.current = program;
-
-    return () => {
-      if (gl) {
-        gl.deleteProgram(program);
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-        gl.deleteBuffer(positionBuffer);
-      }
-    };
-  }, [dimensions.height, dimensions.width, quality]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const gl = glRef.current;
-    const program = programRef.current;
-    if (!canvas || !gl || !program) return;
 
     const uniformLocations = {
       zoom: gl.getUniformLocation(program, "u_zoom"),
@@ -137,7 +81,17 @@ export default function Mandelbrot() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [zoom, center.x, center.y, quality, dimensions, maxIterations]);
+  }, [
+    zoom,
+    center.x,
+    center.y,
+    quality,
+    dimensions,
+    maxIterations,
+    canvasRef,
+    glRef,
+    programRef,
+  ]);
 
   const handleMouseWheel = (event: React.WheelEvent) => {
     event.preventDefault();
@@ -244,26 +198,4 @@ export default function Mandelbrot() {
       </div>
     </div>
   );
-}
-
-function createShader(
-  gl: WebGLRenderingContext,
-  type: number,
-  source: string
-): WebGLShader {
-  const shader = gl.createShader(type);
-  if (!shader) {
-    throw new Error("Failed to create shader");
-  }
-
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const message = gl.getShaderInfoLog(shader);
-    gl.deleteShader(shader);
-    throw new Error("Shader compilation error: " + message);
-  }
-
-  return shader;
 }
