@@ -12,13 +12,11 @@ export default function Mandelbrot() {
   const dragStartRef = useRef<{
     x: number;
     y: number;
-    centerX: number;
-    centerY: number;
+    center: { x: number; y: number };
   } | null>(null);
 
   const [zoom, setZoom] = useState(0.5);
-  const [centerX, setCenterX] = useState(-0.5);
-  const [centerY, setCenterY] = useState(0.0);
+  const [center, setCenter] = useState({ x: -0.5, y: 0.0 });
   const [quality, setQuality] = useState(1.0);
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -52,12 +50,12 @@ export default function Mandelbrot() {
     });
 
     if (!gl) {
-      console.error("WebGL not supported");
-      return;
+      throw new Error("WebGL not supported");
     }
 
     glRef.current = gl;
 
+    console.log("WebGL initialized ... creating shaders");
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
     const fragmentShader = createShader(
       gl,
@@ -73,11 +71,9 @@ export default function Mandelbrot() {
     gl.linkProgram(program);
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error("Program link error:", gl.getProgramInfoLog(program));
-      return;
+      throw new Error("Program link error: " + gl.getProgramInfoLog(program));
     }
 
-    programRef.current = program;
     gl.useProgram(program);
 
     const positionAttributeLocation = gl.getAttribLocation(
@@ -90,6 +86,24 @@ export default function Mandelbrot() {
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
     gl.enableVertexAttribArray(positionAttributeLocation);
     gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    programRef.current = program;
+
+    return () => {
+      if (gl) {
+        gl.deleteProgram(program);
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        gl.deleteBuffer(positionBuffer);
+      }
+    };
+  }, [dimensions.height, dimensions.width, quality]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const gl = glRef.current;
+    const program = programRef.current;
+    if (!canvas || !gl || !program) return;
 
     const uniformLocations = {
       zoom: gl.getUniformLocation(program, "u_zoom"),
@@ -108,7 +122,7 @@ export default function Mandelbrot() {
       gl.useProgram(program);
 
       gl.uniform1f(uniformLocations.zoom, zoom);
-      gl.uniform2f(uniformLocations.center, centerX, centerY);
+      gl.uniform2f(uniformLocations.center, center.x, center.y);
       gl.uniform2f(uniformLocations.resolution, canvas.width, canvas.height);
       gl.uniform1i(uniformLocations.maxIterations, maxIterations);
 
@@ -122,14 +136,8 @@ export default function Mandelbrot() {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      if (gl) {
-        gl.deleteProgram(program);
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-        gl.deleteBuffer(positionBuffer);
-      }
     };
-  }, [zoom, centerX, centerY, quality, dimensions, maxIterations]);
+  }, [zoom, center.x, center.y, quality, dimensions, maxIterations]);
 
   const handleMouseWheel = (event: React.WheelEvent) => {
     event.preventDefault();
@@ -147,8 +155,7 @@ export default function Mandelbrot() {
     dragStartRef.current = {
       x: event.clientX,
       y: event.clientY,
-      centerX,
-      centerY,
+      center,
     };
   };
 
@@ -164,8 +171,10 @@ export default function Mandelbrot() {
     const deltaX = (event.clientX - dragStartRef.current.x) * scaleX;
     const deltaY = (event.clientY - dragStartRef.current.y) * scaleY;
 
-    setCenterX(dragStartRef.current.centerX - deltaX);
-    setCenterY(dragStartRef.current.centerY - deltaY);
+    setCenter({
+      x: dragStartRef.current.center.x - deltaX,
+      y: dragStartRef.current.center.y - deltaY,
+    });
   };
 
   const handleMouseUp = () => {
@@ -226,11 +235,11 @@ export default function Mandelbrot() {
         </div>
         <div>
           <label>Position:</label>
-          <span>x = {centerX.toFixed(8)}</span>
+          <span>x = {center.x.toFixed(8)}</span>
         </div>
         <div>
           <label></label>
-          <span>y = {centerY.toFixed(8)}</span>
+          <span>y = {center.y.toFixed(8)}</span>
         </div>
       </div>
     </div>
@@ -252,7 +261,6 @@ function createShader(
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const message = gl.getShaderInfoLog(shader);
-    console.error("Shader compilation error:", message);
     gl.deleteShader(shader);
     throw new Error("Shader compilation error: " + message);
   }
