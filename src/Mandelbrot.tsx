@@ -3,6 +3,7 @@ import styles from "./Mandelbrot.module.css";
 import vertexShaderSource from "./webgl/vertex_shader.glsl?raw";
 import fragmentShaderSource from "./webgl/fragment_shader.glsl?raw";
 import { useGLSL } from "./hooks/useGLSL";
+import classNames from "classnames";
 
 export default function Mandelbrot() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,11 +141,8 @@ export default function Mandelbrot() {
     <div ref={containerRef}>
       <canvas
         ref={canvasRef}
-        style={{
-          width: "100%",
-          height: "100vh",
-          cursor: isDragging ? "grabbing" : "grab",
-        }}
+        className={classNames(styles.canvas, { [styles.dragging]: isDragging })}
+        style={{ width: "100%", height: "100vh" }}
         onWheel={handleMouseWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -154,7 +152,7 @@ export default function Mandelbrot() {
 
       <div className={styles.controls}>
         <center>
-          WebGL Mandelbrot Renderer{" "}
+          <div>WebGL Mandelbrot Renderer</div>
           <a href="https://github.com/rm-hull/mandelbrot" target="blank">
             https://github.com/rm-hull/mandelbrot
           </a>
@@ -172,7 +170,7 @@ export default function Mandelbrot() {
           <span>{maxIterations}</span>
         </div>
         <div>
-          <label>Quality: </label>
+          <label>Quality:</label>
           <input
             type="range"
             min="0.25"
@@ -192,7 +190,7 @@ export default function Mandelbrot() {
           <span>x = {center.x.toFixed(8)}</span>
         </div>
         <div>
-          <label></label>
+          <label />
           <span>y = {center.y.toFixed(8)}</span>
         </div>
       </div>
