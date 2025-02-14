@@ -3,7 +3,7 @@ import styles from "./Mandelbrot.module.css";
 import vertexShaderSource from "./webgl/vertex_shader.glsl?raw";
 import fragmentShaderSource from "./webgl/fragment_shader.glsl?raw";
 
-const Mandelbrot: React.FC = () => {
+export default function Mandelbrot() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
@@ -235,7 +235,7 @@ const Mandelbrot: React.FC = () => {
       </div>
     </div>
   );
-};
+}
 
 function createShader(
   gl: WebGLRenderingContext,
@@ -259,5 +259,3 @@ function createShader(
 
   return shader;
 }
-
-export default Mandelbrot;
