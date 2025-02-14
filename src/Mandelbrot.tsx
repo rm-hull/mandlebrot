@@ -1,21 +1,25 @@
-import React, { useRef, useEffect, useState } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  MouseEvent,
+  WheelEvent,
+} from "react";
 import styles from "./Mandelbrot.module.css";
 import vertexShaderSource from "./webgl/vertex_shader.glsl?raw";
 import fragmentShaderSource from "./webgl/fragment_shader.glsl?raw";
 import { useGLSL } from "./hooks/useGLSL";
 import classNames from "classnames";
 
+type Point = { x: number; y: number };
+
 export default function Mandelbrot() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number>(0);
-  const dragStartRef = useRef<{
-    x: number;
-    y: number;
-    center: { x: number; y: number };
-  } | null>(null);
+  const dragStartRef = useRef<(Point & { center: Point }) | null>(null);
 
   const [zoom, setZoom] = useState(0.5);
-  const [center, setCenter] = useState({ x: -0.5, y: 0.0 });
+  const [center, setCenter] = useState<Point>({ x: -0.5, y: 0.0 });
   const [quality, setQuality] = useState(1.0);
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -42,13 +46,18 @@ export default function Mandelbrot() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const gl = glRef.current;
-    const program = programRef.current;
-    if (!canvas || !gl || !program) return;
+    if (!canvas) return;
 
     // Set canvas size to match container
     canvas.width = dimensions.width * quality * window.devicePixelRatio;
     canvas.height = dimensions.height * quality * window.devicePixelRatio;
+  }, [dimensions, canvasRef, quality]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const gl = glRef.current;
+    const program = programRef.current;
+    if (!canvas || !gl || !program) return;
 
     const uniformLocations = {
       zoom: gl.getUniformLocation(program, "u_zoom"),
@@ -59,33 +68,17 @@ export default function Mandelbrot() {
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-    function render() {
-      if (!gl || !program || !canvas) return;
+    gl.uniform1f(uniformLocations.zoom, zoom);
+    gl.uniform2f(uniformLocations.center, center.x, center.y);
+    gl.uniform2f(uniformLocations.resolution, canvas.width, canvas.height);
+    gl.uniform1i(uniformLocations.maxIterations, maxIterations);
 
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.useProgram(program);
-
-      gl.uniform1f(uniformLocations.zoom, zoom);
-      gl.uniform2f(uniformLocations.center, center.x, center.y);
-      gl.uniform2f(uniformLocations.resolution, canvas.width, canvas.height);
-      gl.uniform1i(uniformLocations.maxIterations, maxIterations);
-
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      animationFrameRef.current = requestAnimationFrame(render);
-    }
-
-    render();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }, [
     zoom,
-    center.x,
-    center.y,
+    center,
     quality,
     dimensions,
     maxIterations,
@@ -94,43 +87,46 @@ export default function Mandelbrot() {
     programRef,
   ]);
 
-  const handleMouseWheel = (event: React.WheelEvent) => {
-    event.preventDefault();
-    const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
-    setZoom((prev) => Math.max(0.000001, Math.min(2.0, prev * zoomFactor)));
-  };
+  const handleMouseWheel = useCallback(
+    (event: WheelEvent<HTMLCanvasElement>) => {
+      const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+      setZoom((prev) => Math.max(0.000001, Math.min(2.0, prev * zoomFactor)));
+    },
+    []
+  );
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleMouseDown = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        center,
+      };
+    },
+    [center]
+  );
 
-    event.preventDefault();
-    setIsDragging(true);
+  const handleMouseMove = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      if (!isDragging || !dragStartRef.current || !canvasRef.current) return;
 
-    dragStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      center,
-    };
-  };
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const aspectRatio = rect.width / rect.height;
+      const scaleX = (4 * aspectRatio * zoom) / rect.width;
+      const scaleY = (4 * zoom) / rect.height;
 
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !dragStartRef.current || !canvasRef.current) return;
+      const deltaX = (event.clientX - dragStartRef.current.x) * scaleX;
+      const deltaY = (event.clientY - dragStartRef.current.y) * scaleY;
 
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const aspectRatio = rect.width / rect.height;
-    const scaleX = (4 * aspectRatio * zoom) / rect.width;
-    const scaleY = (4 * zoom) / rect.height;
-
-    const deltaX = (event.clientX - dragStartRef.current.x) * scaleX;
-    const deltaY = (event.clientY - dragStartRef.current.y) * scaleY;
-
-    setCenter({
-      x: dragStartRef.current.center.x - deltaX,
-      y: dragStartRef.current.center.y - deltaY,
-    });
-  };
+      setCenter({
+        x: dragStartRef.current.center.x - deltaX,
+        y: dragStartRef.current.center.y - deltaY,
+      });
+    },
+    [canvasRef, isDragging, zoom]
+  );
 
   const handleMouseUp = () => {
     setIsDragging(false);
