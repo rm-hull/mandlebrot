@@ -1,0 +1,8 @@
+.error {
+  padding: 2rem;
+}
+
+.message {
+  font-size: 1.75rem;
+  color: #ff0000;
+}
