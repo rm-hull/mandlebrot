@@ -70,12 +70,13 @@ const Mandelbrot: React.FC = () => {
       precision mediump float;
       #endif
 
-      uniform float u_zoom;
-      uniform float u_centerX;
-      uniform float u_centerY;
-      
-      const int MAX_ITERATIONS = ${maxIterations};
+      const int ABSOLUTE_MAX = 2000;
 
+      uniform float u_zoom;
+      uniform vec2 u_center;
+      uniform vec2 u_resolution;
+      uniform int u_maxIterations;
+      
       vec3 hsv2rgb(vec3 c) {
         vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
         vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -83,39 +84,46 @@ const Mandelbrot: React.FC = () => {
       }
 
       void main() {
-        vec2 resolution = vec2(${canvas.width}.0, ${canvas.height}.0);
-        float aspectRatio = resolution.x / resolution.y;
+        // vec2 resolution = vec2(u_canvasWidth, u_canvasHeight);
+        float aspectRatio = u_resolution.x / u_resolution.y;
         
         vec2 c = vec2(
-          (gl_FragCoord.x / resolution.x * 4.0 * aspectRatio - 2.0 * aspectRatio) * u_zoom + u_centerX,
-          -(gl_FragCoord.y / resolution.y * 4.0 - 2.0) * u_zoom + u_centerY
+          (gl_FragCoord.x / u_resolution.x * 4.0 * aspectRatio - 2.0 * aspectRatio) * u_zoom + u_center.x,
+          -(gl_FragCoord.y / u_resolution.y * 4.0 - 2.0) * u_zoom + u_center.y
         );
         
         vec2 z = vec2(0.0);
-        float iter = 0.0;
-        
-        for (int i = 0; i < MAX_ITERATIONS; i++) {
+        int iter = 0;
+
+        for (int i = 0; i <= ABSOLUTE_MAX; i++) {
+          if (i >= u_maxIterations) {
+            iter = i;
+            break;
+          }
+
           float x = z.x * z.x - z.y * z.y + c.x;
           float y = 2.0 * z.x * z.y + c.y;
-          
-          if (x * x + y * y > 4.0) break;
+
+          if (x * x + y * y > 4.0) {
+            iter = i;
+            break;
+          } 
           z = vec2(x, y);
-          iter += 1.0;
         }
-        
-        if (iter >= float(MAX_ITERATIONS)) {
+
+        if (iter >= u_maxIterations) {
           gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
           return;
         }
-        
-        float hue = iter / 50.0;
-        
+
+        float hue = float(iter) / 50.0;
+
         vec3 color = hsv2rgb(vec3(
           fract(hue + 0.95),
           0.8,
           1.0
         ));
-        
+
         gl_FragColor = vec4(color, 1.0);
       }
     `;
@@ -155,22 +163,24 @@ const Mandelbrot: React.FC = () => {
 
     const uniformLocations = {
       zoom: gl.getUniformLocation(program, "u_zoom"),
-      centerX: gl.getUniformLocation(program, "u_centerX"),
-      centerY: gl.getUniformLocation(program, "u_centerY"),
+      center: gl.getUniformLocation(program, "u_center"),
+      resolution: gl.getUniformLocation(program, "u_resolution"),
+      maxIterations: gl.getUniformLocation(program, "u_maxIterations"),
     };
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     function render() {
-      if (!gl || !program) return;
+      if (!gl || !program || !canvas) return;
 
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(program);
 
       gl.uniform1f(uniformLocations.zoom, zoom);
-      gl.uniform1f(uniformLocations.centerX, centerX);
-      gl.uniform1f(uniformLocations.centerY, centerY);
+      gl.uniform2f(uniformLocations.center, centerX, centerY);
+      gl.uniform2f(uniformLocations.resolution, canvas.width, canvas.height);
+      gl.uniform1i(uniformLocations.maxIterations, maxIterations);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       animationFrameRef.current = requestAnimationFrame(render);
