@@ -87,7 +87,7 @@ export default function Renderer() {
     programRef,
   ]);
 
-  const handleMouseWheel = useCallback(
+  const handleZoom = useCallback(
     (event: WheelEvent<HTMLCanvasElement>) => {
       const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
       setZoom((prev) => Math.max(0.000001, Math.min(2.0, prev * zoomFactor)));
@@ -95,7 +95,7 @@ export default function Renderer() {
     []
   );
 
-  const handleMouseDown = useCallback(
+  const handleMouseDragStart = useCallback(
     (event: MouseEvent<HTMLCanvasElement>) => {
       setIsDragging(true);
       dragStartRef.current = {
@@ -107,8 +107,8 @@ export default function Renderer() {
     [center]
   );
 
-  const handleMouseMove = useCallback(
-    (event: MouseEvent<HTMLCanvasElement>) => {
+  const handleDragging = useCallback(
+    (point: Point) => {
       if (!isDragging || !dragStartRef.current || !canvasRef.current) return;
 
       const canvas = canvasRef.current;
@@ -116,10 +116,8 @@ export default function Renderer() {
       const aspectRatio = rect.width / rect.height;
       const scaleX = (4 * aspectRatio * zoom) / rect.width;
       const scaleY = (4 * zoom) / rect.height;
-
-      const deltaX = (event.clientX - dragStartRef.current.x) * scaleX;
-      const deltaY = (event.clientY - dragStartRef.current.y) * scaleY;
-
+      const deltaX = (point.x - dragStartRef.current.x) * scaleX;
+      const deltaY = (point.y - dragStartRef.current.y) * scaleY;
       setCenter({
         x: dragStartRef.current.center.x - deltaX,
         y: dragStartRef.current.center.y - deltaY,
@@ -128,10 +126,38 @@ export default function Renderer() {
     [canvasRef, isDragging, zoom]
   );
 
-  const handleMouseUp = () => {
+  const handleMouseDragging = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      handleDragging({ x: event.clientX, y: event.clientY });
+    },
+    [handleDragging]
+  );
+
+  const handleDragStop = () => {
     setIsDragging(false);
     dragStartRef.current = null;
   };
+
+  const handleTouchDragStart = useCallback(
+    (event: React.TouchEvent<HTMLCanvasElement>) => {
+      setIsDragging(true);
+      const touch = event.touches[0];
+      dragStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        center,
+      };
+    },
+    [center]
+  );
+
+  const handleTouchDragging = useCallback(
+    (event: React.TouchEvent<HTMLCanvasElement>) => {
+      const touch = event.touches[0];
+      handleDragging({ x: touch.clientX, y: touch.clientY });
+    },
+    [handleDragging]
+  );
 
   return (
     <div ref={containerRef}>
@@ -139,11 +165,14 @@ export default function Renderer() {
         ref={canvasRef}
         className={classNames(styles.canvas, { [styles.dragging]: isDragging })}
         style={{ width: "100%", height: "100vh" }}
-        onWheel={handleMouseWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onWheel={handleZoom}
+        onMouseDown={handleMouseDragStart}
+        onMouseMove={handleMouseDragging}
+        onMouseUp={handleDragStop}
+        onMouseLeave={handleDragStop}
+        onTouchStart={handleTouchDragStart}
+        onTouchMove={handleTouchDragging}
+        onTouchEnd={handleDragStop}
       />
 
       <div className={styles.controls}>
