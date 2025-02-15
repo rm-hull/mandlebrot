@@ -87,24 +87,27 @@ export default function Renderer() {
     programRef,
   ]);
 
-  const handleZoom = useCallback(
-    (event: WheelEvent<HTMLCanvasElement>) => {
-      const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
-      setZoom((prev) => Math.max(0.000001, Math.min(2.0, prev * zoomFactor)));
-    },
-    []
-  );
+  const handleZoom = useCallback((event: WheelEvent<HTMLCanvasElement>) => {
+    const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+    setZoom((prev) => Math.max(0.000001, Math.min(2.0, prev * zoomFactor)));
+  }, []);
 
-  const handleMouseDragStart = useCallback(
-    (event: MouseEvent<HTMLCanvasElement>) => {
+  const handleDragStart = useCallback(
+    (point: Point) => {
       setIsDragging(true);
       dragStartRef.current = {
-        x: event.clientX,
-        y: event.clientY,
+        ...point,
         center,
       };
     },
     [center]
+  );
+
+  const handleMouseDragStart = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      handleDragStart({ x: event.clientX, y: event.clientY });
+    },
+    [handleDragStart]
   );
 
   const handleDragging = useCallback(
@@ -140,15 +143,12 @@ export default function Renderer() {
 
   const handleTouchDragStart = useCallback(
     (event: React.TouchEvent<HTMLCanvasElement>) => {
-      setIsDragging(true);
-      const touch = event.touches[0];
-      dragStartRef.current = {
-        x: touch.clientX,
-        y: touch.clientY,
-        center,
-      };
+      handleDragStart({
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      });
     },
-    [center]
+    [handleDragStart]
   );
 
   const handleTouchDragging = useCallback(
